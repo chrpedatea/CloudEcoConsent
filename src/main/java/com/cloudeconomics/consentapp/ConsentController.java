@@ -12,7 +12,6 @@ import org.springframework.web.servlet.ModelAndView;
 import java.net.URI;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
-import java.util.UUID;
 
 @Controller
 public class ConsentController {
@@ -107,42 +106,127 @@ public class ConsentController {
         return mav;
     }
 
-    private boolean assignRolesToServicePrincipal(String accessToken) {
-        try {
-            OkHttpClient client = new OkHttpClient();
-            
-            // Step 1: Get tenant details
-            String tenantId = extractTenantIdFromToken(accessToken);
-            if (tenantId == null) {
-                System.err.println("Could not extract tenant ID from token");
-                return false;
-            }
-            
-            // Step 2: Get the root management group ID (usually matches tenant ID)
-            String rootManagementGroupId = tenantId;
-            String rootManagementGroupScope = "/providers/Microsoft.Management/managementGroups/" + rootManagementGroupId;
-            
-            // Step 3: Get the service principal ID (our app ID)
-            String servicePrincipalId = getServicePrincipalId(client, accessToken, tenantId);
-            if (servicePrincipalId == null) {
-                System.err.println("Could not find service principal ID");
-                return false;
-            }
-            
-            // Step 4: Assign roles
-            boolean success = true;
-            success &= assignRole(client, accessToken, "Reader", servicePrincipalId, rootManagementGroupScope);
-            success &= assignRole(client, accessToken, "Cost Management Contributor", servicePrincipalId, rootManagementGroupScope);
-            success &= assignRole(client, accessToken, "Reservation Reader", servicePrincipalId, "/providers/Microsoft.Capacity");
-            
-            return success;
-        } catch (Exception e) {
-            System.err.println("Error assigning roles: " + e.getMessage());
-            e.printStackTrace();
+    private boolean configureEnterpriseApp(String accessToken, String tenantId, String servicePrincipalId) {
+    try {
+        OkHttpClient client = new OkHttpClient();
+        
+        // Get an access token for Microsoft Graph
+        String graphToken = getGraphToken(accessToken, tenantId);
+        if (graphToken == null) {
+            System.err.println("Could not get Graph API token");
             return false;
         }
+        
+        // Configure the enterprise app (service principal) to be hidden from users
+        String url = "https://graph.microsoft.com/v1.0/servicePrincipals/" + servicePrincipalId;
+        
+        String requestBody = "{"
+            + "\"accountEnabled\": true,"
+            + "\"appRoleAssignmentRequired\": true,"  // Requires admin to assign the app
+            + "\"disabledByMicrosoftStatus\": null,"
+            + "\"displayName\": \"Cloud Economics\","
+            + "\"homepage\": \"https://ateacloudeconomics.azurewebsites.net\","
+            + "\"tags\": [\"WindowsAzureActiveDirectoryIntegratedApp\", \"HideApp\"],"
+            + "\"notificationEmailAddresses\": [],"
+            + "\"publisherName\": \"Cloud Economics\","
+            + "\"servicePrincipalType\": \"Application\","
+            + "\"preferredSingleSignOnMode\": null,"
+            + "\"visibility\": null"
+            + "}";
+        
+        RequestBody body = RequestBody.create(MediaType.parse("application/json"), requestBody);
+        Request request = new Request.Builder()
+            .url(url)
+            .patch(body)
+            .addHeader("Authorization", "Bearer " + graphToken)
+            .addHeader("Content-Type", "application/json")
+            .build();
+        
+        try (Response response = client.newCall(request).execute()) {
+            if (response.isSuccessful()) {
+                System.out.println("Successfully configured enterprise app visibility");
+                return true;
+            } else {
+                String responseBody = response.body() != null ? response.body().string() : "";
+                System.err.println("Failed to configure enterprise app: Status: " + response.code() + ", Response: " + responseBody);
+                return false;
+            }
+        }
+    } catch (Exception e) {
+        System.err.println("Error configuring enterprise app: " + e.getMessage());
+        return false;
     }
+}
 
+    private String getGraphToken(String accessToken, String tenantId) {
+    try {
+        // Use OBO (On-Behalf-Of) flow to get a token for Graph API
+        ConfidentialClientApplication app = ConfidentialClientApplication.builder(
+                CLIENT_ID,
+                ClientCredentialFactory.createFromSecret(CLIENT_SECRET))
+                .authority("https://login.microsoftonline.com/" + tenantId)
+                .build();
+        
+        // Define the scopes required for Microsoft Graph
+        Set<String> scopes = Collections.singleton("https://graph.microsoft.com/.default");
+        
+        // Build user assertion from the original access token
+        UserAssertion userAssertion = new UserAssertion(accessToken);
+        
+        // Get token for Microsoft Graph API
+        OnBehalfOfParameters parameters = OnBehalfOfParameters
+                .builder(scopes, userAssertion)
+                .build();
+        
+        CompletableFuture<IAuthenticationResult> future = app.acquireToken(parameters);
+        IAuthenticationResult result = future.join();
+        
+        return result.accessToken();
+    } catch (Exception e) {
+        System.err.println("Error getting Graph token: " + e.getMessage());
+        return null;
+    }
+}
+    
+    private boolean assignRolesToServicePrincipal(String accessToken) {
+    try {
+        OkHttpClient client = new OkHttpClient();
+        
+        // Step 1: Get tenant details
+        String tenantId = extractTenantIdFromToken(accessToken);
+        if (tenantId == null) {
+            System.err.println("Could not extract tenant ID from token");
+            return false;
+        }
+        
+        // Step 2: Get the root management group ID (usually matches tenant ID)
+        String rootManagementGroupId = tenantId;
+        String rootManagementGroupScope = "/providers/Microsoft.Management/managementGroups/" + rootManagementGroupId;
+        
+        // Step 3: Get the service principal ID (our app ID)
+        String servicePrincipalId = getServicePrincipalId(client, accessToken, tenantId);
+        if (servicePrincipalId == null) {
+            System.err.println("Could not find service principal ID");
+            return false;
+        }
+        
+        // Step 4: Configure the enterprise app (hide from users, disable sign-in)
+        configureEnterpriseApp(accessToken, tenantId, servicePrincipalId);
+        
+        // Step 5: Assign roles
+        boolean success = true;
+        success &= assignRole(client, accessToken, "Reader", servicePrincipalId, rootManagementGroupScope);
+        success &= assignRole(client, accessToken, "Cost Management Contributor", servicePrincipalId, rootManagementGroupScope);
+        success &= assignRole(client, accessToken, "Reservation Reader", servicePrincipalId, "/providers/Microsoft.Capacity");
+        
+        return success;
+    } catch (Exception e) {
+        System.err.println("Error assigning roles: " + e.getMessage());
+        e.printStackTrace();
+        return false;
+    }
+}
+    
     private String extractTenantIdFromToken(String accessToken) {
         try {
             // Access token is in format: header.payload.signature
