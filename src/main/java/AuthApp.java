@@ -1,5 +1,5 @@
-import com.microsoft.aad.msal4j.*;
 
+import com.microsoft.aad.msal4j.*;
 import java.net.URI;
 import java.util.Collections;
 import java.util.Set;
@@ -10,19 +10,22 @@ public class AuthApp {
         private final static String CLIENT_ID = System.getenv("AZURE_CLIENT_ID");
         private final static String CLIENT_SECRET = System.getenv("AZURE_CLIENT_SECRET");
         private final static String AUTHORITY = "https://login.microsoftonline.com/common";
-
+        private final static String REDIRECT_URI = System.getenv("REDIRECT_URI") != null ? 
+                System.getenv("REDIRECT_URI") : "http://localhost:8080/redirect";
+        
         public static void main(String[] args) throws Exception {
-                ConfidentialClientApplication app = ConfidentialClientApplication.builder(
-                                CLIENT_ID,
-                                ClientCredentialFactory.createFromSecret(CLIENT_SECRET))
-                                .authority(AUTHORITY)
-                                .build();
-
-                // Step 1: Get Authorization URL
-                AuthorizationRequestUrlParameters parameters = AuthorizationRequestUrlParameters
-                                .builder("http://localhost:8080/redirect",
-                                                Collections.singleton("https://graph.microsoft.com/.default"))
-                                .build();
+            ConfidentialClientApplication app = ConfidentialClientApplication.builder(
+                            CLIENT_ID,
+                            ClientCredentialFactory.createFromSecret(CLIENT_SECRET))
+                            .authority(AUTHORITY)
+                            .build();
+        
+            // Step 1: Get Authorization URL
+            AuthorizationRequestUrlParameters parameters = AuthorizationRequestUrlParameters
+                            .builder(REDIRECT_URI,
+                                            Collections.singleton("https://graph.microsoft.com/.default"))
+                            .build();
+        
 
                 String authUrl = app.getAuthorizationRequestUrl(parameters).toString();
                 System.out.println("Please go to this URL and grant consent: " + authUrl);
@@ -34,8 +37,8 @@ public class AuthApp {
 
                 // Step 3: Exchange authorization code for access token
                 AuthorizationCodeParameters authCodeParams = AuthorizationCodeParameters
-                                .builder(authCode, new URI("http://localhost:8080/redirect"))
-                                .build();
+                .builder(authCode, new URI(REDIRECT_URI))
+                .build();
 
                 CompletableFuture<IAuthenticationResult> future = app.acquireToken(authCodeParams);
                 IAuthenticationResult result = future.join();
