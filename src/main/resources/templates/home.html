@@ -1,12 +1,17 @@
 <!DOCTYPE html>
-<html>
+<html xmlns:th="http://www.thymeleaf.org">
 <head>
     <title>Cloud Economics - Grant Access</title>
     <style>
         body { font-family: Arial, sans-serif; margin: 0; padding: 20px; color: #333; }
         .container { max-width: 800px; margin: 0 auto; padding: 20px; }
-        h1 { color: #0078d4; }
-        .btn { display: inline-block; background-color: #0078d4; color: white; padding: 10px 20px; 
+        .logo {
+        max-width: 200px;
+        height: auto;
+        display: block; /* Makes sure there's no extra space below the image */
+        }
+        h1 { color: #70bf4f; }
+        .btn { display: inline-block; background-color: #70bf4f; color: white; padding: 10px 20px; 
                text-decoration: none; border-radius: 4px; font-weight: bold; }
         .error { color: red; }
         .info { background-color: #f0f0f0; padding: 15px; border-radius: 4px; margin: 20px 0; }
@@ -14,6 +19,7 @@
 </head>
 <body>
     <div class="container">
+        <img th:src="@{/images/logo.png}" alt="Cloud Economics Logo" class="logo">        
         <h1>Grant Access to Cloud Economics Application</h1>
         
         <div class="info">

@@ -1,6 +1,8 @@
 package com.cloudeconomics.consentapp;
 
 import com.microsoft.aad.msal4j.*;
+
+import io.github.cdimascio.dotenv.Dotenv;
 import okhttp3.*;
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -16,11 +18,20 @@ import java.util.concurrent.CompletableFuture;
 @Controller
 public class ConsentController {
 
-    private final static String CLIENT_ID = System.getenv("AZURE_CLIENT_ID");
-    private final static String CLIENT_SECRET = System.getenv("AZURE_CLIENT_SECRET");
+ private static final Dotenv dotenv = Dotenv.configure().ignoreIfMissing().load();
+    
+    private final static String CLIENT_ID = dotenv.get("AZURE_CLIENT_ID") != null ? 
+            dotenv.get("AZURE_CLIENT_ID") : System.getenv("AZURE_CLIENT_ID");
+            
+    private final static String CLIENT_SECRET = dotenv.get("AZURE_CLIENT_SECRET") != null ? 
+            dotenv.get("AZURE_CLIENT_SECRET") : System.getenv("AZURE_CLIENT_SECRET");
+
+    private final static String REDIRECT_URI = dotenv.get("REDIRECT_URI") != null ? 
+            dotenv.get("REDIRECT_URI") : System.getenv("REDIRECT_URI") != null ? 
+            System.getenv("REDIRECT_URI") : "http://localhost:8080/redirect";
+
     private final static String AUTHORITY = "https://login.microsoftonline.com/common";
-    private final static String REDIRECT_URI = System.getenv("REDIRECT_URI") != null ? System.getenv("REDIRECT_URI")
-            : "http://localhost:8080/redirect";
+
 
     @GetMapping("/")
     public ModelAndView home() {
