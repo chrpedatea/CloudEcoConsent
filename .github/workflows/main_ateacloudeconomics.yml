@@ -1,38 +1,33 @@
-# Docs for the Azure Web Apps Deploy action: https://github.com/Azure/webapps-deploy
-# More GitHub Actions for Azure: https://github.com/Azure/actions
-
-name: Build and deploy JAR app to Azure Web App - ateacloudeconomics
+name: Build and deploy JAR app to Azure Web App
 
 on:
   push:
-    branches:
-      - main
+    branches: [ "main" ]
   workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read #This is required for actions/checkout
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v3
 
       - name: Set up Java version
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v3
         with:
+          distribution: 'temurin'
           java-version: '11'
-          distribution: 'microsoft'
+          cache: maven
 
       - name: Build with Maven
-        working-directory: ./demo
-        run: mvn clean install
+        working-directory: ./demo  # Add this line to specify the project directory
+        run: mvn clean package
 
       - name: Upload artifact for deployment job
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v3
         with:
           name: java-app
-          path: '${{ github.workspace }}/target/*.jar'
+          path: demo/target/*.jar  # Update this path to match your project structure
 
   deploy:
     runs-on: ubuntu-latest
@@ -40,28 +35,17 @@ jobs:
     environment:
       name: 'Production'
       url: ${{ steps.deploy-to-webapp.outputs.webapp-url }}
-    permissions:
-      id-token: write #This is required for requesting the JWT
-      contents: read #This is required for actions/checkout
-  
+    
     steps:
       - name: Download artifact from build job
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v3
         with:
           name: java-app
-      
-      - name: Login to Azure
-        uses: azure/login@v2
-        with:
-          client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_F60695CFB976465E912CAF044EAC3288 }}
-          tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_C16ECEC4773E478182BC0481641040C4 }}
-          subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_1ABDBBCDC4DC4767B1FA097D715976D6 }}
 
       - name: Deploy to Azure Web App
         id: deploy-to-webapp
-        uses: azure/webapps-deploy@v3
+        uses: azure/webapps-deploy@v2
         with:
-          app-name: 'ateacloudeconomics'
-          slot-name: 'Production'
+          app-name: 'ateacloudeconomics'  # Replace with your actual web app name
+          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
           package: '*.jar'
-          
