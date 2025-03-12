@@ -78,11 +78,18 @@ public class ConsentController {
                     ClientCredentialFactory.createFromSecret(CLIENT_SECRET))
                     .authority(AUTHORITY)
                     .build();
-
+    
+            // Set the same scopes as used in the authorization request
+            Set<String> scopes = new HashSet<>(Arrays.asList(
+                "https://management.azure.com/user_impersonation",
+                "https://management.core.windows.net/user_impersonation"
+            ));
+    
             AuthorizationCodeParameters authCodeParams =
                     AuthorizationCodeParameters.builder(code, new URI(REDIRECT_URI))
+                            .scopes(scopes)  // Specify the scopes explicitly
                             .build();
-
+    
             CompletableFuture<IAuthenticationResult> future = app.acquireToken(authCodeParams);
             IAuthenticationResult result = future.join();
             
