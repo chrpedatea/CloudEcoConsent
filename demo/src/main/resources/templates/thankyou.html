@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Thank You - Cloud Economics</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 0; padding: 20px; color: #333; }
+        .container { max-width: 800px; margin: 0 auto; padding: 20px; }
+        h1 { color: #0078d4; }
+        .success { color: green; }
+        .info { background-color: #f0f0f0; padding: 15px; border-radius: 4px; margin: 20px 0; }
+        .steps { margin-top: 20px; }
+        .step { margin-bottom: 15px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Thank You!</h1>
+        
+        <div class="success">
+            <p>Access has been successfully granted to the Cloud Economics application.</p>
+        </div>
+        
+        <div class="info">
+            <p>The Cloud Economics application now has the necessary permissions to analyze your Azure costs and resources. You can now close this window.</p>
+        </div>
+        
+        <h2>How to Revoke Access</h2>
+        <div class="steps">
+            <p>If you need to remove this application's access in the future, follow these steps:</p>
+            
+            <div class="step">
+                <strong>1.</strong> Sign in to the <a href="https://portal.azure.com" target="_blank">Azure Portal</a>.
+            </div>
+            
+            <div class="step">
+                <strong>2.</strong> Navigate to <strong>Microsoft Entra ID</strong> (formerly Azure Active Directory).
+            </div>
+            
+            <div class="step">
+                <strong>3.</strong> Click on <strong>Enterprise Applications</strong>.
+            </div>
+            
+            <div class="step">
+                <strong>4.</strong> Find and select <strong>Cloud Economics</strong> in the list.
+            </div>
+            
+            <div class="step">
+                <strong>5.</strong> Click <strong>Delete</strong> to remove the application and revoke its access.
+            </div>
+        </div>
+    </div>
+</body>
+</html>

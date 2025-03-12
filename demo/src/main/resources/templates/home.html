@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Cloud Economics - Grant Access</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 0; padding: 20px; color: #333; }
+        .container { max-width: 800px; margin: 0 auto; padding: 20px; }
+        h1 { color: #0078d4; }
+        .btn { display: inline-block; background-color: #0078d4; color: white; padding: 10px 20px; 
+               text-decoration: none; border-radius: 4px; font-weight: bold; }
+        .error { color: red; }
+        .info { background-color: #f0f0f0; padding: 15px; border-radius: 4px; margin: 20px 0; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Grant Access to Cloud Economics Application</h1>
+        
+        <div class="info">
+            <p>This process will grant the Cloud Economics application permission to access cost and resource data in your Azure subscription.</p>
+            <p><strong>Requirements:</strong></p>
+            <ul>
+                <li>You must be an Application Administrator in Entra ID</li>
+                <li>You must be a User Access Administrator on the root management group</li>
+            </ul>
+        </div>
+        
+        <div th:if="${error}" class="error">
+            <p th:text="${error}"></p>
+        </div>
+        
+        <div th:if="${authUrl}">
+            <p>Click the button below to grant access:</p>
+            <a th:href="${authUrl}" class="btn">Grant Consent</a>
+        </div>
+    </div>
+</body>
+</html>

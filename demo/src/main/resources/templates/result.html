@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Cloud Economics - Consent Result</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 0; padding: 20px; color: #333; }
+        .container { max-width: 800px; margin: 0 auto; padding: 20px; }
+        h1 { color: #0078d4; }
+        .success { color: green; }
+        .error { color: red; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Consent Process Result</h1>
+        
+        <div th:if="${status == 'Success'}" class="success">
+            <h2>Success!</h2>
+            <p th:text="${message}"></p>
+            <p>The Cloud Economics application now has the necessary permissions to analyze your Azure costs and resources.</p>
+        </div>
+        
+        <div th:if="${status == 'Error'}" class="error">
+            <h2>Error</h2>
+            <p th:text="${message}"></p>
+            <p>Please try again or contact your administrator.</p>
+        </div>
+    </div>
+</body>
+</html>
