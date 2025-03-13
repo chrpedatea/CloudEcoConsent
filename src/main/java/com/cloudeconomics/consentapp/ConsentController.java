@@ -196,62 +196,70 @@ public ModelAndView handleRedirect(@RequestParam(value = "code", required = fals
                     ClientCredentialFactory.createFromSecret(CLIENT_SECRET))
                     .authority("https://login.microsoftonline.com/" + tenantId)
                     .build();
-
+    
             // Define the scopes required for Microsoft Graph
             Set<String> scopes = Collections.singleton("https://graph.microsoft.com/.default");
-
+    
             // Build user assertion from the original access token
             UserAssertion userAssertion = new UserAssertion(accessToken);
-
+    
             // Get token for Microsoft Graph API
             OnBehalfOfParameters parameters = OnBehalfOfParameters
                     .builder(scopes, userAssertion)
                     .build();
-
+    
             CompletableFuture<IAuthenticationResult> future = app.acquireToken(parameters);
             IAuthenticationResult result = future.join();
-
+    
             return result.accessToken();
         } catch (Exception e) {
             System.err.println("Error getting Graph token: " + e.getMessage());
             return null;
         }
     }
-
+    
     private boolean assignRolesToServicePrincipal(String accessToken) {
         try {
             OkHttpClient client = new OkHttpClient();
-
+    
             // Step 1: Get tenant details
             String tenantId = extractTenantIdFromToken(accessToken);
             if (tenantId == null) {
                 System.err.println("Could not extract tenant ID from token");
                 return false;
             }
-
+    
             // Step 2: Get the root management group ID (usually matches tenant ID)
             String rootManagementGroupId = tenantId;
             String rootManagementGroupScope = "/providers/Microsoft.Management/managementGroups/"
                     + rootManagementGroupId;
-
-            // Step 3: Get the service principal ID (our app ID)
-            String servicePrincipalId = getServicePrincipalId(client, accessToken, tenantId);
+    
+            // Step 3: Get the service principal ID with retries (consent might take time to propagate)
+            String servicePrincipalId = null;
+            for (int i = 0; i < 5 && servicePrincipalId == null; i++) {
+                servicePrincipalId = getServicePrincipalId(client, accessToken, tenantId);
+                if (servicePrincipalId == null && i < 4) {
+                    System.out.println("Service principal not found, waiting to retry... (" + (i+1) + "/5)");
+                    Thread.sleep(2000); // Wait 2 seconds between retries
+                }
+            }
+            
             if (servicePrincipalId == null) {
-                System.err.println("Could not find service principal ID");
+                System.err.println("Could not find service principal ID after multiple attempts");
                 return false;
             }
-
+    
             // Step 4: Configure the enterprise app (hide from users, disable sign-in)
             configureEnterpriseApp(accessToken, tenantId, servicePrincipalId);
-
-            // Step 5: Assign roles
+    
+            // Step 5: Assign roles - using the USER'S access token
             boolean success = true;
             success &= assignRole(client, accessToken, "Reader", servicePrincipalId, rootManagementGroupScope);
             success &= assignRole(client, accessToken, "Cost Management Contributor", servicePrincipalId,
                     rootManagementGroupScope);
             success &= assignRole(client, accessToken, "Reservation Reader", servicePrincipalId,
                     "/providers/Microsoft.Capacity");
-
+    
             return success;
         } catch (Exception e) {
             System.err.println("Error assigning roles: " + e.getMessage());
@@ -259,7 +267,7 @@ public ModelAndView handleRedirect(@RequestParam(value = "code", required = fals
             return false;
         }
     }
-
+    
     private String extractTenantIdFromToken(String accessToken) {
         try {
             // Access token is in format: header.payload.signature
@@ -281,14 +289,49 @@ public ModelAndView handleRedirect(@RequestParam(value = "code", required = fals
 
     private String getServicePrincipalId(OkHttpClient client, String accessToken, String tenantId) {
         try {
-            // This is the same as the application's client ID for enterprise apps
+            // Query the service principal in the user's tenant based on the app ID
+            String url = "https://graph.microsoft.com/v1.0/servicePrincipals?$filter=appId eq '" + CLIENT_ID + "'";
+            
+            // First we need a Graph token using the user's credentials
+            String graphToken = getGraphToken(accessToken, tenantId);
+            if (graphToken == null) {
+                System.err.println("Could not get Graph API token");
+                return null;
+            }
+            
+            Request request = new Request.Builder()
+                .url(url)
+                .get()
+                .addHeader("Authorization", "Bearer " + graphToken)
+                .build();
+                
+            try (Response response = client.newCall(request).execute()) {
+                if (response.isSuccessful() && response.body() != null) {
+                    String responseBody = response.body().string();
+                    JSONObject json = new JSONObject(responseBody);
+                    JSONArray values = json.getJSONArray("value");
+                    
+                    if (values.length() > 0) {
+                        // Get the first matching service principal
+                        JSONObject servicePrincipal = values.getJSONObject(0);
+                        return servicePrincipal.getString("id");
+                    }
+                } else {
+                    String responseBody = response.body() != null ? response.body().string() : "";
+                    System.err.println("Failed to get service principal: Status: " + response.code() + 
+                        ", Response: " + responseBody);
+                }
+            }
+            
+            // Fallback - not ideal but might work in some cases
             return CLIENT_ID;
         } catch (Exception e) {
             System.err.println("Error getting service principal: " + e.getMessage());
+            e.printStackTrace();
             return null;
         }
     }
-
+    
     private boolean assignRole(OkHttpClient client, String accessToken, String roleName, String principalId,
             String scope) {
         try {
