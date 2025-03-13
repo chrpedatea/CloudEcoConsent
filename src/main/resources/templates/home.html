@@ -5,25 +5,32 @@
     <style>
         body { font-family: Arial, sans-serif; margin: 0; padding: 20px; color: #333; }
         .container { max-width: 800px; margin: 0 auto; padding: 20px; }
-        .logo {
-        max-width: 200px;
-        height: auto;
-        display: block; /* Makes sure there's no extra space below the image */
-        }
-        h1 { color: #70bf4f; }
-        .btn { display: inline-block; background-color: #70bf4f; color: white; padding: 10px 20px; 
-               text-decoration: none; border-radius: 4px; font-weight: bold; }
+        .logo { max-width: 200px; height: auto; display: block; }
+        h1 { color: #32711f; }
+        .btn { display: inline-block; background-color: #32711f; color: white; padding: 10px 20px; 
+               text-decoration: none; border-radius: 4px; font-weight: bold; margin: 20px 0; }
+        .btn:disabled { background-color: #cccccc; cursor: not-allowed; }
         .error { color: red; }
         .info { background-color: #f0f0f0; padding: 15px; border-radius: 4px; margin: 20px 0; }
+        .access-options { margin-top: 30px; }
+        .access-option { border: 1px solid #ddd; border-radius: 8px; padding: 20px; background-color: #fafafa; margin-bottom: 20px; }
+        .access-option h2 { margin-top: 0; color: #4d575d; display: flex; align-items: center; }
+        .access-option-desc { margin-bottom: 15px; }
+        .permissions { background-color: #eee; padding: 10px; border-radius: 4px; margin-bottom: 15px; }
+        .permissions ul { margin: 5px 0; padding-left: 25px; }
+        .checkbox-container { display: flex; align-items: center; }
+        .checkbox-container input[type="checkbox"] { margin-right: 10px; transform: scale(1.5); }
+        .grant-section { margin-top: 30px; text-align: center; }
+        .grant-btn { font-size: 16px; padding: 12px 30px; }
     </style>
 </head>
 <body>
     <div class="container">
         <img th:src="@{/images/logo.png}" alt="Atea Logo" class="logo">        
-        <h1>Grant Access to Cloud Economics Application</h1>
+        <h1>Grant Access to Cloud Services</h1>
         
         <div class="info">
-            <p>This process will grant the Cloud Economics application permission to access cost and resource data in your Azure subscription.</p>
+            <p>Select which types of access you wish to grant:</p>
             <p><strong>Requirements:</strong></p>
             <ul>
                 <li>You must be an Application Administrator in Entra ID</li>
@@ -35,10 +42,100 @@
             <p th:text="${error}"></p>
         </div>
         
-        <div th:if="${authUrl}">
-            <p>Click the button below to grant access:</p>
-            <a th:href="${authUrl}" class="btn">Grant Consent</a>
-        </div>
+        <form id="accessForm" th:if="${authUrl}">
+            <div class="access-options">
+                <!-- Cloud Economics Option -->
+                <div class="access-option">
+                    <div class="checkbox-container">
+                        <input type="checkbox" id="cloudEconomics" name="cloudEconomics" checked>
+                        <h2>Cloud Economics Access</h2>
+                    </div>
+                    <div class="access-option-desc">
+                        <p>Grant access to cost and resource data for cloud cost optimization.</p>
+                    </div>
+                    <div class="permissions">
+                        <strong>Permissions:</strong>
+                        <ul>
+                            <li>Reader on Root Management Group</li>
+                            <li>Cost Management Contributor</li>
+                            <li>Reservation Reader</li>
+                        </ul>
+                    </div>
+                </div>
+                
+                <!-- KKIaaS Option -->
+                <div class="access-option">
+                    <div class="checkbox-container">
+                        <input type="checkbox" id="kkiaas" name="kkiaas">
+                        <h2>KKIaaS Access</h2>
+                    </div>
+                    <div class="access-option-desc">
+                        <p>Grant access to tenant user and group directory data.</p>
+                    </div>
+                    <div class="permissions">
+                        <strong>Permissions:</strong>
+                        <ul>
+                            <li>Reader on Root Management Group</li>
+                            <li>Directory.Read.All (users, groups, and other directory objects)</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="grant-section">
+                <button id="grantButton" class="btn grant-btn" type="button">Grant Selected Access</button>
+            </div>
+        </form>
     </div>
+
+    <script th:inline="javascript">
+        // Get the base auth URL from Thymeleaf
+        const baseAuthUrl = /*[[${authUrl}]]*/ '';
+        
+        document.addEventListener('DOMContentLoaded', function() {
+            const cloudEconomicsCheckbox = document.getElementById('cloudEconomics');
+            const kkiaasCheckbox = document.getElementById('kkiaas');
+            const grantButton = document.getElementById('grantButton');
+            
+            // Function to update button state
+            function updateButtonState() {
+                const anySelected = cloudEconomicsCheckbox.checked || kkiaasCheckbox.checked;
+                grantButton.disabled = !anySelected;
+                
+                if (!anySelected) {
+                    grantButton.textContent = 'Select at least one option';
+                } else {
+                    grantButton.textContent = 'Grant Selected Access';
+                }
+            }
+            
+            // Add event listeners to checkboxes
+            cloudEconomicsCheckbox.addEventListener('change', updateButtonState);
+            kkiaasCheckbox.addEventListener('change', updateButtonState);
+            
+            // Handle grant button click
+            grantButton.addEventListener('click', function() {
+                let finalUrl = baseAuthUrl;
+                
+                // Add parameters based on selections
+                if (cloudEconomicsCheckbox.checked && kkiaasCheckbox.checked) {
+                    // Both options selected
+                    finalUrl += '&cloud_economics=true&directory_access=true';
+                } else if (cloudEconomicsCheckbox.checked) {
+                    // Only Cloud Economics selected
+                    finalUrl += '&cloud_economics=true';
+                } else if (kkiaasCheckbox.checked) {
+                    // Only KKIaaS selected
+                    finalUrl += '&directory_access=true';
+                }
+                
+                // Navigate to the authorization URL
+                window.location.href = finalUrl;
+            });
+            
+            // Initialize button state
+            updateButtonState();
+        });
+    </script>
 </body>
 </html>

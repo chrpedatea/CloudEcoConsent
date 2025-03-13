@@ -1,103 +1,187 @@
 <!DOCTYPE html>
 <html>
+
 <head>
     <title>Thank You - Cloud Economics</title>
     <style>
-        body { font-family: Arial, sans-serif; margin: 0; padding: 20px; color: #333; }
-        .container { max-width: 800px; margin: 0 auto; padding: 20px; }
-        .logo {
-        max-width: 200px;
-        height: auto;
-        display: block; /* Makes sure there's no extra space below the image */
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            color: #333;
         }
-        h1 { color: #70bf4f; }
-        .success { color: green; }
-        .info { background-color: #f0f0f0; padding: 15px; border-radius: 4px; margin: 20px 0; }
-        .steps { margin-top: 20px; }
-        .step { margin-bottom: 15px; }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .logo {
+            max-width: 200px;
+            height: auto;
+            display: block;
+            /* Makes sure there's no extra space below the image */
+        }
+
+        h1 {
+            color: #32711f;
+        }
+
+        .success {
+            color: #32711f;
+        }
+
+        .info {
+            background-color: #f0f0f0;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 20px 0;
+        }
+
+        .steps {
+            margin-top: 20px;
+        }
+
+        .step {
+            margin-bottom: 15px;
+        }
     </style>
 </head>
+
 <body>
     <div class="container">
         <!-- Logo -->
         <img th:src="@{/images/logo.png}" alt="Atea Logo" class="logo">
-        
+
         <h1>Thank You!</h1>
-        
+
         <div class="success">
             <p>Access has been successfully granted to the Cloud Economics application.</p>
         </div>
-        
+
         <!-- Role Assignment Verification Section -->
         <div class="verification" th:class="${rolesAssigned ? 'verification success' : 'verification warning'}">
             <h2>Role Assignment Status</h2>
             <p th:if="${rolesAssigned}">
                 <strong>✓ Success!</strong> The following roles have been assigned to the application:
-                <ul>
-                    <li>Reader on the root management group</li>
-                    <li>Cost Management Contributor on the root management group</li>
-                    <li>Reservation Reader on Microsoft.Capacity</li>
-                </ul>
+            <ul>
+                <li>Reader on the root management group</li>
+                <li>Cost Management Contributor on the root management group</li>
+                <li>Reservation Reader on Microsoft.Capacity</li>
+            </ul>
             </p>
             <p th:if="${!rolesAssigned}">
                 <strong>⚠ Warning:</strong> There was an issue assigning one or more required roles.
                 <br>
                 You may need to manually assign the following roles to the application:
-                <ul>
-                    <li>Reader on the root management group</li>
-                    <li>Cost Management Contributor on the root management group</li>
-                    <li>Reservation Reader on Microsoft.Capacity</li>
-                </ul>
+            <ul>
+                <li>Reader on the root management group</li>
+                <li>Cost Management Contributor on the root management group</li>
+                <li>Reservation Reader on Microsoft.Capacity</li>
+            </ul>
             </p>
         </div>
-        
+        <!-- Cost Access Status Section - Only shown if requested -->
+        <div class="verification" th:if="${costAccessRequested}"
+            th:class="${costAccessGranted ? 'verification success' : 'verification warning'}">
+            <h2>Cloud Economics Access Status</h2>
+            <p th:if="${costAccessGranted}">
+                <strong>✓ Success!</strong> The following roles have been assigned:
+            <ul>
+                <li>Reader on the root management group</li>
+                <li>Cost Management Contributor on the root management group</li>
+                <li>Reservation Reader on Microsoft.Capacity</li>
+            </ul>
+            </p>
+            <p th:if="${!costAccessGranted}">
+                <strong>⚠ Warning:</strong> There was an issue assigning one or more cost management roles.
+            </p>
+        </div>
+
+        <!-- Directory Access Status Section - Only shown if requested -->
+        <div class="verification" th:if="${directoryAccessRequested}"
+            th:class="${directoryAccessGranted ? 'verification success' : 'verification warning'}">
+            <h2>KKIaaS Access Status</h2>
+            <p th:if="${directoryAccessGranted}">
+                <strong>✓ Success!</strong> Directory access (Directory.Read.All) has been granted.
+            </p>
+            <p th:if="${!directoryAccessGranted}">
+                <strong>⚠ Warning:</strong> There was an issue granting directory access.
+            </p>
+        </div>
+
         <!-- Storage Account Creation Section -->
         <div class="storage-option">
             <h2>Set Up Cost Export Storage</h2>
-            <p>To enable automatic cost data exports, we recommend setting up a dedicated storage account in your Azure subscription.</p>
-            
+            <p>To enable exports of Azure cost data, set up a dedicated storage account in your Azure subscription.</p>
+
             <div class="info">
                 <p><strong>Recommended configuration:</strong></p>
                 <ul>
                     <li>Resource Group: RG-ateacloudeconomics</li>
-                    <li>Storage Account Name: <span th:text="${suggestedStorageName}">ateacloudeconomics-tenant</span></li>
+                    <li>Storage Account Name: <span th:text="${suggestedStorageName}">ateacloudeconomics-tenant</span>
+                    </li>
                     <li>Location: West Europe</li>
                     <li>Performance: Standard</li>
                     <li>Account kind: StorageV2</li>
                     <li>Replication: Locally-redundant storage (LRS)</li>
                 </ul>
-                <p>Once created, assign the <strong>Reader and Data Access</strong> role to the Cloud Economics application on this storage account.</p>
+                <p>Once created, assign the <strong>Reader and Data Access</strong> role to the AteaCloudEconomics
+                    application on this storage account.</p>
+                <p>This can be done via Access Control (IAM) on the newly created Storage Account</p>
             </div>
-            
+
             <a href="https://portal.azure.com/#create/Microsoft.StorageAccount" target="_blank" class="btn">
                 Create Storage Account
             </a>
+            <style>
+                .btn {
+                    display: inline-block;
+                    padding: 10px 20px;
+                    font-size: 16px;
+                    color: #fff;
+                    background-color: #32711f;
+                    border: none;
+                    border-radius: 4px;
+                    text-align: center;
+                    text-decoration: none;
+                    cursor: pointer;
+                    transition: background-color 0.3s ease;
+                }
+
+                .btn:hover {
+                    background-color: #4ead31;
+                }
+            </style>
         </div>
-        
+
         <h2>How to Revoke Access</h2>
         <div class="steps">
             <p>If you need to remove this application's access in the future, follow these steps:</p>
-            
+
             <div class="step">
                 <strong>1.</strong> Sign in to the <a href="https://portal.azure.com" target="_blank">Azure Portal</a>.
             </div>
-            
+
             <div class="step">
                 <strong>2.</strong> Navigate to <strong>Microsoft Entra ID</strong> (formerly Azure Active Directory).
             </div>
-            
+
             <div class="step">
                 <strong>3.</strong> Click on <strong>Enterprise Applications</strong>.
             </div>
-            
+
             <div class="step">
                 <strong>4.</strong> Find and select <strong>AteaCloudEconomics</strong> in the list.
             </div>
-            
+
             <div class="step">
-                <strong>5.</strong> Click <strong>Properties<strong>, then </strong><strong>Delete</strong> to remove the application and revoke its access.
+                <strong>5.</strong> Click <strong>Properties<strong>, then </strong><strong>Delete</strong> to remove
+                    the application and revoke its access.
             </div>
         </div>
     </div>
 </body>
+
 </html>
