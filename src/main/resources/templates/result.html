@@ -5,6 +5,11 @@
     <style>
         body { font-family: Arial, sans-serif; margin: 0; padding: 20px; color: #333; }
         .container { max-width: 800px; margin: 0 auto; padding: 20px; }
+        .logo {
+        max-width: 200px;
+        height: auto;
+        display: block; /* Makes sure there's no extra space below the image */
+        }
         h1 { color: #70bf4f; }
         .success { color: green; }
         .error { color: red; }
@@ -12,6 +17,7 @@
 </head>
 <body>
     <div class="container">
+        <img th:src="@{/images/logo.png}" alt="Atea Logo" class="logo">        
         <h1>Consent Process Result</h1>
         
         <div th:if="${status == 'Success'}" class="success">

@@ -18,20 +18,19 @@ import java.util.concurrent.CompletableFuture;
 @Controller
 public class ConsentController {
 
- private static final Dotenv dotenv = Dotenv.configure().ignoreIfMissing().load();
-    
-    private final static String CLIENT_ID = dotenv.get("AZURE_CLIENT_ID") != null ? 
-            dotenv.get("AZURE_CLIENT_ID") : System.getenv("AZURE_CLIENT_ID");
-            
-    private final static String CLIENT_SECRET = dotenv.get("AZURE_CLIENT_SECRET") != null ? 
-            dotenv.get("AZURE_CLIENT_SECRET") : System.getenv("AZURE_CLIENT_SECRET");
+    private static final Dotenv dotenv = Dotenv.configure().ignoreIfMissing().load();
 
-    private final static String REDIRECT_URI = dotenv.get("REDIRECT_URI") != null ? 
-            dotenv.get("REDIRECT_URI") : System.getenv("REDIRECT_URI") != null ? 
-            System.getenv("REDIRECT_URI") : "http://localhost:8080/redirect";
+    private final static String CLIENT_ID = dotenv.get("AZURE_CLIENT_ID") != null ? dotenv.get("AZURE_CLIENT_ID")
+            : System.getenv("AZURE_CLIENT_ID");
+
+    private final static String CLIENT_SECRET = dotenv.get("AZURE_CLIENT_SECRET") != null
+            ? dotenv.get("AZURE_CLIENT_SECRET")
+            : System.getenv("AZURE_CLIENT_SECRET");
+
+    private final static String REDIRECT_URI = dotenv.get("REDIRECT_URI") != null ? dotenv.get("REDIRECT_URI")
+            : System.getenv("REDIRECT_URI") != null ? System.getenv("REDIRECT_URI") : "http://localhost:8080/redirect";
 
     private final static String AUTHORITY = "https://login.microsoftonline.com/common";
-
 
     @GetMapping("/")
     public ModelAndView home() {
@@ -63,60 +62,76 @@ public class ConsentController {
     }
 
     @GetMapping("/redirect")
-    public ModelAndView handleRedirect(@RequestParam(value = "code", required = false) String code,
-            @RequestParam(value = "error", required = false) String error) {
-        ModelAndView mav = new ModelAndView();
+public ModelAndView handleRedirect(@RequestParam(value = "code", required = false) String code,
+        @RequestParam(value = "error", required = false) String error) {
+    ModelAndView mav = new ModelAndView();
+    boolean rolesAssigned = false;  // Define variable outside try block
+    String tenantId = null;         // Define variable outside try block
 
-        if (error != null) {
-            mav.setViewName("result");
-            mav.addObject("status", "Error");
-            mav.addObject("message", "Consent failed: " + error);
-            return mav;
-        }
-
-        if (code == null) {
-            mav.setViewName("result");
-            mav.addObject("status", "Error");
-            mav.addObject("message", "No authorization code received");
-            return mav;
-        }
-
-        try {
-            ConfidentialClientApplication app = ConfidentialClientApplication.builder(
-                    CLIENT_ID,
-                    ClientCredentialFactory.createFromSecret(CLIENT_SECRET))
-                    .authority(AUTHORITY)
-                    .build();
-
-            // Request only one resource scope
-            Set<String> scopes = Collections.singleton(
-                    "https://management.azure.com/user_impersonation");
-
-            AuthorizationCodeParameters authCodeParams = AuthorizationCodeParameters
-                    .builder(code, new URI(REDIRECT_URI))
-                    .scopes(scopes) // Only one resource scope
-                    .build();
-
-            CompletableFuture<IAuthenticationResult> future = app.acquireToken(authCodeParams);
-            IAuthenticationResult result = future.join();
-
-            // Assign Azure roles to the service principal
-            boolean rolesAssigned = assignRolesToServicePrincipal(result.accessToken());
-
-            // Redirect to thank you page
-            mav.setViewName("redirect:/thankyou");
-            return mav;
-        } catch (Exception e) {
-            mav.setViewName("result");
-            mav.addObject("status", "Error");
-            mav.addObject("message", "Error processing authorization code: " + e.getMessage());
-            return mav;
-        }
+    if (error != null) {
+        mav.setViewName("result");
+        mav.addObject("status", "Error");
+        mav.addObject("message", "Consent failed: " + error);
+        return mav;
     }
 
+    if (code == null) {
+        mav.setViewName("result");
+        mav.addObject("status", "Error");
+        mav.addObject("message", "No authorization code received");
+        return mav;
+    }
+
+    try {
+        ConfidentialClientApplication app = ConfidentialClientApplication.builder(
+                CLIENT_ID,
+                ClientCredentialFactory.createFromSecret(CLIENT_SECRET))
+                .authority(AUTHORITY)
+                .build();
+
+        // Request only one resource scope
+        Set<String> scopes = Collections.singleton(
+                "https://management.azure.com/user_impersonation");
+
+        AuthorizationCodeParameters authCodeParams = AuthorizationCodeParameters
+                .builder(code, new URI(REDIRECT_URI))
+                .scopes(scopes) // Only one resource scope
+                .build();
+
+        CompletableFuture<IAuthenticationResult> future = app.acquireToken(authCodeParams);
+        IAuthenticationResult result = future.join();
+
+        // Extract tenant ID
+        tenantId = extractTenantIdFromToken(result.accessToken());
+        
+        // Assign Azure roles to the service principal
+        rolesAssigned = assignRolesToServicePrincipal(result.accessToken());
+
+        // Redirect to thank you page
+        mav.setViewName("redirect:/thankyou");
+        mav.addObject("rolesAssigned", rolesAssigned);
+        mav.addObject("tenantId", tenantId);
+        return mav;
+    } catch (Exception e) {
+        System.err.println("Error processing authorization code: " + e.getMessage());
+        mav.setViewName("redirect:/thankyou");
+        mav.addObject("rolesAssigned", rolesAssigned);  // Now it's defined
+        mav.addObject("tenantId", tenantId);           // Now it's defined
+        return mav;
+    }
+}
+
     @GetMapping("/thankyou")
-    public ModelAndView thankYou() {
+    public ModelAndView thankYou(@RequestParam(required = false) Boolean rolesAssigned,
+            @RequestParam(required = false) String tenantId) {
+
         ModelAndView mav = new ModelAndView("thankyou");
+        mav.addObject("rolesAssigned", rolesAssigned != null && rolesAssigned);
+        mav.addObject("tenantId", tenantId);
+        // Generate a suggested storage account name
+        String suggestedStorageName = "ateacloudeconomics-"
+                + (tenantId != null ? tenantId.substring(0, Math.min(8, tenantId.length())) : "customer");
+        mav.addObject("suggestedStorageName", suggestedStorageName);
         return mav;
     }
 
